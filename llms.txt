@@ -1,0 +1,71 @@
+# NS Pros Data API
+
+The world's public data, one API.
+License-cleared public data sources, normalized into a single REST API and MCP server for developers and AI agents.
+Sources include the Japan Meteorological Agency, the World Bank, the US National Weather Service, Government of Canada open data, and UK data.gov.uk, spanning weather, health, finance, business, and public records.
+New sources are added daily.
+Only license-cleared sources (License Grade A: commercial redistribution confirmed) are offered.
+
+## Base URL
+
+https://api.nspros.ca
+
+Catalog: https://api.nspros.ca/v1/sources (public — browsing the catalog needs no API key)
+
+## Authentication
+
+Header: Authorization: Bearer <key>
+Get a key: https://data.nspros.ca/signup (free tier, issued immediately, no card required)
+The same key works for REST and MCP.
+Exception: GET /v1/sources (the catalog) is public and needs no key. A key is required to run queries.
+
+## REST endpoints
+
+- GET /v1/sources — list the catalog of available sources (public, no key required; supports q, category, and country filters)
+- GET /v1/query/{source_id}?q=... — run a query against one source
+- POST /v1/query — run a query with a JSON body: {"source_id": "...", "q": "..."}
+- GET /v1/usage — check usage for the current key
+
+All responses are JSON and automatically include source attribution.
+
+## MCP
+
+URL: https://api.nspros.ca/mcp
+Auth: Authorization: Bearer <key>
+Tools:
+- search_sources — search the catalog
+- query_source — run a query against a source by source_id
+- get_usage — return usage for the current key
+
+## Pricing
+
+- Free: $0 — 1,000 requests/month, no card required
+- Pay as you go: $1.99 per 1,000 requests
+Note: signing up currently issues a free-tier key immediately. Pay-as-you-go billing will be connected via Stripe in the next step; until then no usage charges are billed.
+
+## License policy
+
+- Grade A: commercial redistribution confirmed — currently the only grade offered
+- Grade B: BYO (bring your own upstream key) — planned for a later step, not offered yet
+- Grade C: internal use only — not offered
+- Grade D: on hold pending license review — not offered
+
+## Limits and caching
+
+- Per key: 120 requests/minute
+- Per source: 30 requests/minute
+- Responses are cached per source with a source-specific TTL
+
+## Errors
+
+- 401: missing or invalid API key
+- 429: rate limit exceeded
+- 502: upstream source error or unavailable
+
+## Contact
+
+NS Pros, Halifax, Nova Scotia
+Email: hello@nspros.ca
+Phone: +1 902-593-4567
+Web: https://nspros.ca
+Docs: https://data.nspros.ca/docs

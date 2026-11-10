@@ -1,0 +1,252 @@
+openapi: 3.1.0
+info:
+  title: NS Pros Data API
+  version: 1.0.0
+  description: >-
+    The world's public data, one API. License-cleared public data sources —
+    including the Japan Meteorological Agency, the World Bank, the US National
+    Weather Service, Government of Canada open data, and UK data.gov.uk —
+    normalized into a single REST API. Every source is License Grade A
+    (commercial redistribution confirmed), and every query response includes
+    the source's license and attribution text automatically. New sources are
+    added daily.
+  contact:
+    name: NS Pros
+    email: hello@nspros.ca
+    url: https://data.nspros.ca
+  license:
+    name: Source data under original licenses (see each response's license/attribution fields)
+servers:
+  - url: https://api.nspros.ca
+    description: Production
+security:
+  - bearerAuth: []
+tags:
+  - name: Catalog
+    description: Public catalog browsing — no API key required.
+  - name: Query
+    description: Run queries against sources — API key required.
+  - name: Account
+    description: Key usage information.
+paths:
+  /v1/sources:
+    get:
+      tags: [Catalog]
+      summary: List the source catalog
+      description: >-
+        Public endpoint — no API key required. Returns the catalog of
+        License Grade A sources with each source's license name and
+        attribution text.
+      security: []
+      parameters:
+        - name: q
+          in: query
+          description: Free-text search over source id, name, and category.
+          schema: { type: string }
+        - name: category
+          in: query
+          description: Category filter, e.g. finance, health, weather_env.
+          schema: { type: string }
+        - name: country
+          in: query
+          description: ISO country code filter, e.g. US, CA, GB, JP.
+          schema: { type: string }
+      responses:
+        '200':
+          description: Catalog entries matching the filters.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    description: Number of sources returned by this query (reflects the filters).
+                  sources:
+                    type: array
+                    items: { $ref: '#/components/schemas/Source' }
+        '429': { $ref: '#/components/responses/Error' }
+  /v1/sources/{source_id}:
+    get:
+      tags: [Catalog]
+      summary: Get one source's details
+      description: >-
+        Public endpoint — no API key required. Returns the catalog fields
+        plus an example object with a ready-to-run query URL, curl command,
+        and equivalent MCP tool arguments.
+      security: []
+      parameters:
+        - name: source_id
+          in: path
+          required: true
+          description: Source identifier from the catalog, e.g. uk_bank_holidays.
+          schema: { type: string }
+      responses:
+        '200':
+          description: Source details.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Source'
+                  - type: object
+                    properties:
+                      kind: { type: string }
+                      example: { type: object }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /v1/query/{source_id}:
+    get:
+      tags: [Query]
+      summary: Query one source (GET)
+      parameters:
+        - name: source_id
+          in: path
+          required: true
+          description: Source identifier from the catalog.
+          schema: { type: string }
+        - name: q
+          in: query
+          description: Query text for the source.
+          schema: { type: string }
+        - name: limit
+          in: query
+          description: Max results (1–20).
+          schema: { type: integer, default: 5, minimum: 1, maximum: 20 }
+      responses:
+        '200':
+          description: Normalized query results.
+          headers:
+            X-Usage-Month:
+              description: Requests used this month by this key.
+              schema: { type: integer }
+            X-Quota-Limit:
+              description: Monthly limit for the key's plan, or "unlimited".
+              schema: { type: string }
+            X-Quota-Remaining:
+              description: Requests remaining this month, or "unlimited".
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QueryResponse' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '502': { $ref: '#/components/responses/Error' }
+  /v1/query:
+    post:
+      tags: [Query]
+      summary: Query one source (POST)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source]
+              properties:
+                source:
+                  type: string
+                  description: Source identifier from the catalog.
+                  example: uk_bank_holidays
+                q:
+                  type: string
+                  description: Query text for the source.
+                  example: '2026'
+                limit:
+                  type: integer
+                  description: Max results (1–20).
+                  default: 5
+                  minimum: 1
+                  maximum: 20
+      responses:
+        '200':
+          description: Normalized query results.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QueryResponse' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '502': { $ref: '#/components/responses/Error' }
+  /v1/usage:
+    get:
+      tags: [Account]
+      summary: Get the key's plan and monthly usage
+      responses:
+        '200':
+          description: Plan and usage for the authenticated key.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Usage' }
+        '401': { $ref: '#/components/responses/Error' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: >-
+        NS Pros Data API key. Get a free key at https://data.nspros.ca/signup.
+        The catalog endpoints (/v1/sources) are public and need no key.
+  schemas:
+    Source:
+      type: object
+      properties:
+        id: { type: string, example: uk_bank_holidays }
+        name: { type: string }
+        country: { type: string, description: ISO country code. }
+        category: { type: string, example: immigration_life }
+        license: { type: string, example: 'Open Government Licence v3.0 (OGL)' }
+        attribution:
+          type: string
+          description: Attribution text to keep with this source's data.
+        byo:
+          type: boolean
+          description: Whether the source needs a bring-your-own upstream key. All currently offered sources are false.
+    QueryResponse:
+      type: object
+      properties:
+        source:
+          type: object
+          properties:
+            name: { type: string }
+            id: { type: string }
+        license: { type: string }
+        attribution: { type: string }
+        query: { type: string }
+        count:
+          type: integer
+          description: Number of results in this response.
+        cached:
+          type: boolean
+          description: True when served from the per-source cache.
+        results:
+          type: array
+          items:
+            type: object
+            description: Normalized result record.
+            properties:
+              title: { type: string }
+              snippet: { type: string }
+              url: { type: string }
+              date: { type: string }
+    Usage:
+      type: object
+      description: Plan and current monthly usage for the authenticated key.
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+  responses:
+    Error:
+      description: Error response.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }

@@ -1,0 +1,1 @@
+{"servers":{"nspros-data":{"headers":{"Authorization":"Bearer <key>"},"type":"http","url":"https://api.nspros.ca/mcp"}}}
